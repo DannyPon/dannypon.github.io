@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>爱情三部曲</title>
+<meta property="og:title" content="爱情三部曲">
+<meta property="og:description" content="按一下，听一个关于爱的故事。">
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:30px 22px; color:#fff; overflow:hidden;
+    background:linear-gradient(160deg,#3a2e2a 0%,#6b3a46 55%,#b5485d 100%);
+    font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  }
+  .small { letter-spacing:6px; font-size:13px; opacity:.8; }
+  h1 { font-size:44px; letter-spacing:10px; margin:14px 0 6px; font-weight:500; }
+  .sub { opacity:.85; font-size:15px; margin-bottom:36px; }
+
+  #play {
+    width:120px; height:120px; border-radius:50%; border:none; cursor:pointer;
+    background:#fff; color:#b5485d; font-size:46px; line-height:120px;
+    box-shadow:0 12px 36px rgba(0,0,0,.3);
+    animation:pulse 2.2s infinite;
+  }
+  #play.on { animation:none; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+
+  #status { margin-top:26px; font-size:17px; min-height:28px; letter-spacing:2px; }
+  #status small { display:block; font-size:13px; opacity:.7; letter-spacing:1px; margin-top:4px; }
+
+  .dots { display:flex; gap:10px; justify-content:center; margin-top:16px; }
+  .dots span { width:9px; height:9px; border-radius:50%; background:#ffffff40; transition:background .4s; }
+  .dots span.done { background:#ffffffaa; }
+  .dots span.now { background:#fff; box-shadow:0 0 0 4px #ffffff30; }
+
+  .video { width:min(300px,80vw); aspect-ratio:16/9; border-radius:12px; overflow:hidden;
+    margin-top:20px; background:#000; display:none; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .video.show { display:block; }
+  .video iframe, .video > div { width:100%; height:100%; }
+
+  #skip { margin-top:18px; background:none; border:1px solid #ffffff60; color:#fff; border-radius:999px;
+    padding:6px 16px; font-size:13px; cursor:pointer; font-family:system-ui,sans-serif; visibility:hidden; }
+  #help { margin-top:16px; font-size:13px; font-family:system-ui,sans-serif; max-width:320px;
+    background:#00000030; border-radius:10px; padding:10px 12px; line-height:1.7; display:none; }
+  #help.show { display:block; }
+  #help a, #help button { color:#ffd3dc; background:none; border:none; text-decoration:underline;
+    font-size:14px; cursor:pointer; padding:0; }
+  .hint { position:fixed; bottom:18px; left:0; right:0; font-size:12px; opacity:.6; font-family:system-ui,sans-serif; }
+</style>
+</head>
+<body>
+
+  <div class="small">一段说白 · 一首歌 · 一个故事</div>
+  <h1>爱情三部曲</h1>
+  <div class="sub">相遇 · 相守 · 相伴到老</div>
+
+  <button id="play" aria-label="播放">▶</button>
+  <div id="status">按一下，开始听故事</div>
+  <div class="dots" id="dots"></div>
+  <div class="video" id="videoBox"><div id="yt"></div></div>
+  <div id="help"></div>
+  <button id="skip">⏭ 跳到下一段</button>
+
+  <div class="hint">🔊 请打开声音</div>
+
+<script>
+/* =====================================================================
+   ✏️ 只需要改这里 —— EDIT ONLY THIS PART
+   narration : 你的说白（不会显示在页面上，只会读出来）
+   youtube   : YouTube 歌曲链接（第一个播不到会自动换第二个）
+   start     : 副歌从第几分几秒开始，例如 "1:05"（看 YouTube 上的时间）
+   seconds   : 播放多少秒，例如 20（最后 2 秒会慢慢变小声）
+   voice     : 你自己的录音文件名（例如 "part1.mp3"）；留空 "" 就用手机朗读
+   ===================================================================== */
+const STORY = [
+  {
+    title: "第一部 · 相遇",
+    narration: "那一年，我们都还年轻。人海茫茫，偏偏在那一个转角，遇见了你。你的笑容很浅，却在我心里留了很久。那时候我还不知道，原来一个人的出现，可以让整个世界都变得温柔。原来，所有的等待，都是为了遇见你。",
+    song: { title: "遇见", artist: "孙燕姿",
+            youtube: ["https://youtu.be/m4nu_F_9dWU", "https://youtu.be/WObbdwgB41c"],
+            start: "1:14", seconds: 22 },
+    voice: ""
+  },
+  {
+    title: "第二部 · 相守",
+    narration: "日子不总是晴天。有争吵，有沉默，也有各自转身的夜晚。可是每一次想放手的时候，总会想起你那一句：我们一起。于是，我们学会了包容，学会了在风雨里，把手握得更紧。爱不是不吵架，而是吵完了，还是你。",
+    song: { title: "童话", artist: "光良",
+            youtube: ["https://youtu.be/bBcp_ljCBGU", "https://youtu.be/OSCuOsaOE48"],
+            start: "4:38", seconds: 28 },
+    voice: ""
+  },
+  {
+    title: "第三部 · 相伴到老",
+    narration: "后来，我们一起走过了很多地方，也一起看过了很多风景。头发会白，脚步会慢，但只要回头还能看见你，就觉得这一生，值得了。最浪漫的事，就是和你一起慢慢变老。",
+    song: { title: "与你到永久", artist: "伍佰",
+            youtube: ["https://youtu.be/44HiH287Iw4", "https://youtu.be/kPI_LAx426w"],
+            start: "1:51", seconds: 0 },   // 0 = play until the end
+    voice: ""
+  }
+];
+const READ_SPEED = 0.9;   // 朗读速度：0.8 慢 · 1.0 正常
+/* ===================================================================== */
+
+const playBtn = document.getElementById('play');
+const statusEl = document.getElementById('status');
+const helpEl = document.getElementById('help');
+const skipBtn = document.getElementById('skip');
+const videoBox = document.getElementById('videoBox');
+const dotsEl = document.getElementById('dots');
+STORY.forEach(() => dotsEl.appendChild(document.createElement('span')));
+const dots = [...dotsEl.children];
+
+const state = { part: 0, phase: 'idle', paused: false, token: 0, sentence: 0 };
+
+function setStatus(main, sub) { statusEl.innerHTML = main + (sub ? `<small>${sub}</small>` : ''); }
+function showHelp(html) { helpEl.innerHTML = html; helpEl.classList.add('show'); }
+function hideHelp() { helpEl.classList.remove('show'); }
+function ytId(url) {
+  if (!url) return '';
+  const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function songIds(p) { return [].concat(p.song.youtube || []).map(ytId).filter(Boolean); }
+function toSec(t) { if (typeof t === 'number') return t; const [m, s] = String(t || '0').split(':').map(Number); return s === undefined ? m : m * 60 + s; }
+let clipTimer = null;
+function stopClipTimer() { if (clipTimer) { clearInterval(clipTimer); clipTimer = null; } }
+// Watch the song; when the clip length is reached, fade out and move on
+function watchClip(my) {
+  stopClipTimer();
+  const p = STORY[state.part];
+  const startAt = toSec(p.song.start), len = p.song.seconds || 0;
+  if (!len) return;                      // seconds: 0 → play the whole song
+  clipTimer = setInterval(() => {
+    if (my !== state.token || state.phase !== 'song') return stopClipTimer();
+    if (player.getPlayerState() !== YT.PlayerState.PLAYING) return;
+    const left = startAt + len - player.getCurrentTime();
+    if (left <= 2) player.setVolume(Math.max(0, Math.round(left / 2 * 100)));   // fade out
+    if (left <= 0) { stopClipTimer(); nextPart(); }
+  }, 200);
+}
+function sentencesOf(text) { return text.match(/[^。！？!?]+[。！？!?”」"]*/g) || [text]; }
+
+/* ---------- Phone voice ---------- */
+let zhVoice = null;
+function pickVoice() {
+  const vs = speechSynthesis.getVoices();
+  zhVoice = vs.find(v => /zh[-_]CN/i.test(v.lang)) || vs.find(v => /^zh|cmn/i.test(v.lang)) || null;
+}
+if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+const voiceAudio = new Audio();
+
+/* ---------- YouTube ---------- */
+let player = null, playerReady = false;
+window.onYouTubeIframeAPIReady = () => {
+  player = new YT.Player('yt', {
+    width: '100%', height: '100%',
+    videoId: songIds(STORY[0])[0] || undefined,
+    playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0 },
+    events: {
+      onReady: () => { playerReady = true; },
+      onStateChange: e => {
+        if (state.phase !== 'song') return;
+        if (e.data === YT.PlayerState.PLAYING) { hideHelp(); if (!clipTimer) watchClip(state.token); }
+        if (e.data === YT.PlayerState.ENDED) nextPart();
+      },
+      onError: () => {
+        if (state.phase !== 'song') return;
+        const ids = songIds(STORY[state.part]);
+        state.tryIdx++;
+        if (state.tryIdx < ids.length) { player.loadVideoById({ videoId: ids[state.tryIdx], startSeconds: toSec(STORY[state.part].song.start) }); return; }  // try backup video
+        showHelp(`这首歌不能在这里播放。<a href="https://youtu.be/${ids[0]}" target="_blank">在 YouTube 打开</a>`);
+      }
+    }
+  });
+};
+(() => { const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); })();
+
+/* ---------- Flow ---------- */
+function start() {
+  state.token++;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  if (playerReady && songIds(STORY[0]).length) {   // unlock video for later autoplay
+    try { player.mute(); player.playVideo(); setTimeout(() => { player.pauseVideo(); player.unMute(); }, 400); } catch (e) {}
+  }
+  state.part = 0; state.sentence = 0; state.paused = false;
+  playBtn.classList.add('on'); playBtn.textContent = '❚❚';
+  skipBtn.style.visibility = 'visible';
+  narrate();
+}
+
+function updateDots() {
+  dots.forEach((d, k) => { d.className = k < state.part ? 'done' : (k === state.part ? 'now' : ''); });
+}
+
+function narrate() {
+  const p = STORY[state.part];
+  state.phase = 'narration';
+  videoBox.classList.remove('show'); hideHelp(); updateDots();
+  setStatus(p.title, '说白中…');
+  if (p.voice) {
+    const my = state.token;
+    voiceAudio.src = p.voice;
+    voiceAudio.onended = () => { if (my === state.token) playSong(); };
+    voiceAudio.play().catch(() => tts());
+  } else tts();
+}
+
+function tts() {
+  const my = state.token;
+  if (!('speechSynthesis' in window)) { showHelp('这个浏览器不能朗读。请用 Chrome 打开。'); return; }
+  const parts = sentencesOf(STORY[state.part].narration);
+  const first = state.sentence;
+  let started = false, failed = false;
+  const fail = () => {
+    if (failed || my !== state.token) return;
+    failed = true; speechSynthesis.cancel();
+    const zh = speechSynthesis.getVoices().filter(v => /^zh|cmn/i.test(v.lang));
+    showHelp(zh.length === 0 && !started
+      ? '🔇 手机没有安装中文语音。<br>设置 → 文字转语音 → Google 语音服务 → 安装中文。'
+      : '<button onclick="resumeVoice()">▶ 点这里继续</button>');
+  };
+  for (let k = first; k < parts.length; k++) {
+    const u = new SpeechSynthesisUtterance(parts[k]);
+    u.lang = zhVoice ? zhVoice.lang : 'zh-CN';
+    if (zhVoice) u.voice = zhVoice;
+    u.rate = READ_SPEED;
+    u.onstart = () => { if (my === state.token) { started = true; state.sentence = k; hideHelp(); } };
+    u.onerror = e => { if (e.error !== 'interrupted' && e.error !== 'canceled') fail(); };
+    if (k === parts.length - 1) u.onend = () => { if (my === state.token && !failed) playSong(); };
+    speechSynthesis.speak(u);
+  }
+  setTimeout(() => { if (!started && !state.paused) fail(); }, 3000);
+}
+function resumeVoice() { state.token++; state.paused = false; hideHelp(); playBtn.textContent = '❚❚'; tts(); }
+
+function playSong() {
+  const my = state.token, p = STORY[state.part];
+  state.phase = 'song'; state.sentence = 0;
+  setStatus(`🎵 ${p.song.title}`, p.song.artist);
+  const id = songIds(p)[0]; state.tryIdx = 0;
+  if (!id || !playerReady) {
+    showHelp(!id ? '（这首歌还没放链接 — 3 秒后继续）' : '（播放器还没准备好 — 3 秒后继续）');
+    setTimeout(() => { if (my === state.token && state.phase === 'song') nextPart(); }, 3000);
+    return;
+  }
+  videoBox.classList.add('show');
+  stopClipTimer(); player.setVolume(100);
+  player.loadVideoById({ videoId: id, startSeconds: toSec(p.song.start) });
+  setTimeout(() => {
+    if (my !== state.token || state.phase !== 'song') return;
+    const st = player.getPlayerState();
+    if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING)
+      showHelp('<button onclick="player.playVideo()">▶ 点这里播放歌曲</button>');
+  }, 4000);
+}
+
+function nextPart() {
+  state.token++; stopClipTimer();
+  if (playerReady) { try { player.stopVideo(); } catch (e) {} }
+  if (state.part + 1 >= STORY.length) return finish();
+  state.part++; state.sentence = 0; state.paused = false;
+  narrate();
+}
+
+function finish() {
+  state.phase = 'done';
+  videoBox.classList.remove('show'); hideHelp();
+  dots.forEach(d => d.className = 'done');
+  setStatus('— 全剧终 —', '谢谢你，陪我走完这个故事');
+  playBtn.classList.remove('on'); playBtn.textContent = '↺';
+  skipBtn.style.visibility = 'hidden';
+}
+
+/* ---------- Buttons ---------- */
+playBtn.onclick = () => {
+  if (state.phase === 'idle' || state.phase === 'done') return start();
+  if (state.phase === 'narration') {
+    if (!state.paused) {
+      state.paused = true; state.token++;
+      speechSynthesis.cancel(); voiceAudio.pause();
+      playBtn.textContent = '▶';
+    } else if (STORY[state.part].voice) {
+      state.paused = false; state.token++; playBtn.textContent = '❚❚';
+      const my = state.token;
+      voiceAudio.onended = () => { if (my === state.token) playSong(); };
+      voiceAudio.play();
+    } else resumeVoice();
+  } else if (state.phase === 'song' && playerReady) {
+    if (player.getPlayerState() === YT.PlayerState.PLAYING) { player.pauseVideo(); playBtn.textContent = '▶'; }
+    else { player.playVideo(); playBtn.textContent = '❚❚'; }
+  }
+};
+
+skipBtn.onclick = () => {
+  if (state.phase === 'narration') {
+    state.token++; speechSynthesis.cancel(); voiceAudio.pause();
+    playBtn.textContent = '❚❚'; playSong();
+  } else if (state.phase === 'song') nextPart();
+};
+</script>
+</body>
+</html>
